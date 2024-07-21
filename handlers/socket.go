@@ -45,8 +45,8 @@ func SocketConn(w http.ResponseWriter, r *http.Request) {
 }
 
 type Message struct {
-	MessageName string      `json:"message-name"`
-	MessageBody interface{} `json:"message-body"`
+	MessageName string      `json:"message_name"`
+	MessageBody interface{} `json:"message_body"`
 	Addressee   string      `json:"addressee"`
 }
 
