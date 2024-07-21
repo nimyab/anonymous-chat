@@ -18,16 +18,20 @@ type SocketHub struct {
 }
 
 // изза хаба не работе нужно переделать
-var hub = SocketHub{
-	broadcast:     make(chan Message),
-	register:      make(chan *SocketClientWithId),
-	unregister:    make(chan *SocketClient),
-	getClientById: make(map[string]*SocketClient),
-	getIdByClient: make(map[*SocketClient]string),
-}
+var hub *SocketHub
 
 func GetSocketHub() *SocketHub {
-	return &hub
+	if hub == nil {
+		hub = &SocketHub{
+			broadcast:     make(chan Message),
+			register:      make(chan *SocketClientWithId),
+			unregister:    make(chan *SocketClient),
+			getClientById: make(map[string]*SocketClient),
+			getIdByClient: make(map[*SocketClient]string),
+		}
+		go hub.Run()
+	}
+	return hub
 }
 
 func (h *SocketHub) Run() {
@@ -44,10 +48,11 @@ func (h *SocketHub) Run() {
 			close(client.messageChat)
 
 		case message := <-h.broadcast:
-			client := h.getClientById[message.Addressee]
-			fmt.Println(message)
+			fmt.Println(message.Addressee, h.getClientById)
+			client, ok := h.getClientById[message.Addressee]
+			fmt.Println(client, ok)
 
-			if client != nil {
+			if ok {
 				select {
 				case client.messageChat <- message:
 				default:

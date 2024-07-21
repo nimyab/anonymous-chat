@@ -59,13 +59,13 @@ type SocketClient struct {
 }
 
 func (sc *SocketClient) ReadPump() {
-	defer sc.conn.Close()
-
-	fmt.Println("Reading pump")
+	defer func() {
+		sc.hub.unregister <- sc
+		sc.conn.Close()
+	}()
 
 	for {
 		_, message, err := sc.conn.ReadMessage()
-		fmt.Println(message)
 		if err != nil {
 			slog.Error(err.Error())
 			break
@@ -82,14 +82,10 @@ func (sc *SocketClient) ReadPump() {
 }
 
 func (sc *SocketClient) WritePump() {
-	defer sc.conn.Close()
-
-	fmt.Println("Writing pump")
 
 	for {
 		select {
 		case message, ok := <-sc.messageChat:
-			fmt.Println(message)
 			if !ok {
 				sc.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
