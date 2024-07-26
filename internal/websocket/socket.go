@@ -1,11 +1,24 @@
-package handlers
+package websocket
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"log/slog"
 	"net/http"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/labstack/echo/v4"
+)
+
+const (
+	writeWait = 10 * time.Second
+
+	pongWait = 120 * time.Second
+
+	pingPeriod = (pongWait * 8) / 10
+
+	maxMessageSize = 512
 )
 
 var upgrader = websocket.Upgrader{
@@ -13,18 +26,16 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func SocketConn(w http.ResponseWriter, r *http.Request) {
-	id := r.Header.Get("Id")
+func SocketConn(c echo.Context) error {
+
+	id := c.Request().Header.Get("Id")
 	if id == "" {
-		http.Error(w, "Not found user id", http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, struct{ message string }{message: "Not found ID"})
 	}
 
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := upgrader.Upgrade(c.Response().Writer, c.Request(), nil)
 	if err != nil {
-		slog.Error(err.Error())
-		http.Error(w, "Error upgrading to websockets", http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, struct{ message string }{message: "Error upgrading to websockets"})
 	}
 
 	hub := GetSocketHub()
@@ -33,6 +44,7 @@ func SocketConn(w http.ResponseWriter, r *http.Request) {
 		hub:         hub,
 		messageChat: make(chan Message),
 	}
+
 	slog.Info(fmt.Sprintf("New connection %s", id))
 
 	hub.register <- &SocketClientWithId{
@@ -42,6 +54,8 @@ func SocketConn(w http.ResponseWriter, r *http.Request) {
 
 	go client.ReadPump()
 	go client.WritePump()
+
+	return nil
 }
 
 type Message struct {
@@ -64,6 +78,13 @@ func (sc *SocketClient) ReadPump() {
 		sc.conn.Close()
 	}()
 
+	sc.conn.SetReadLimit(maxMessageSize)
+	sc.conn.SetReadDeadline(time.Now().Add(pongWait))
+	sc.conn.SetPongHandler(func(appData string) error {
+		sc.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
 	for {
 		_, message, err := sc.conn.ReadMessage()
 		if err != nil {
@@ -82,6 +103,11 @@ func (sc *SocketClient) ReadPump() {
 }
 
 func (sc *SocketClient) WritePump() {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		sc.conn.Close()
+	}()
 
 	for {
 		select {
@@ -91,10 +117,16 @@ func (sc *SocketClient) WritePump() {
 				return
 			}
 			bytes, err := json.Marshal(message)
+			sc.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err != nil {
 				sc.conn.WriteMessage(websocket.TextMessage, []byte("Marshalling error message"))
 			} else {
 				sc.conn.WriteMessage(websocket.TextMessage, bytes)
+			}
+		case <-ticker.C:
+			sc.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := sc.conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+				return
 			}
 		}
 	}

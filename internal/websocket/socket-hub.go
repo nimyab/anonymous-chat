@@ -1,4 +1,4 @@
-package handlers
+package websocket
 
 type SocketClientWithId struct {
 	Client *SocketClient
