@@ -6,6 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// todo: mutex
 type AuthService struct {
 	gorm *gorm.DB
 }

@@ -22,8 +22,7 @@ func (handler *AuthHandler) Login(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	// todo: validation data
-	if err := dto.Validation(); err != nil {
+	if err := c.Validate(&dto); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
@@ -43,8 +42,7 @@ func (handler *AuthHandler) Registration(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	// todo: validation data
-	if err := dto.Validation(); err != nil {
+	if err := c.Validate(&dto); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
