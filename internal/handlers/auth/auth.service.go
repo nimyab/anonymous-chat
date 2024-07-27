@@ -3,7 +3,6 @@ package auth
 import (
 	"github.com/nimyab/anonymous-chat/internal/database/models"
 	"github.com/nimyab/anonymous-chat/internal/handlers/auth/dtos"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -15,7 +14,8 @@ func NewAuthService(gorm *gorm.DB) *AuthService {
 	return &AuthService{gorm: gorm}
 }
 
-func (s *AuthService) Login(dto dtos.UserLoginDto) (*models.User, error) {
+func (s *AuthService) Login(dto *dtos.UserLoginDto) (*models.User, error) {
+
 	user := models.User{
 		Login: dto.Login,
 	}
@@ -24,8 +24,7 @@ func (s *AuthService) Login(dto dtos.UserLoginDto) (*models.User, error) {
 		return nil, ErrUserNotFound
 	}
 
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(dto.Password))
-	if err != nil {
+	if err := user.ComparePasswords(dto.Password); err != nil {
 		return nil, ErrWrongPassword
 	}
 
@@ -33,15 +32,14 @@ func (s *AuthService) Login(dto dtos.UserLoginDto) (*models.User, error) {
 }
 
 func (s *AuthService) Registration(dto *dtos.UserRegistrationDto) (*models.User, error) {
-	hashPassword, err := bcrypt.GenerateFromPassword([]byte(dto.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, err
-	}
-
 	user := models.User{
 		Login:    dto.Login,
-		Password: string(hashPassword),
+		Password: dto.Password,
 		Name:     dto.Name,
+	}
+
+	if err := user.GeneratePassword(); err != nil {
+		return nil, err
 	}
 
 	result := s.gorm.Create(&user)

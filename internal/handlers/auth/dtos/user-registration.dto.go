@@ -5,3 +5,7 @@ type UserRegistrationDto struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
 }
+
+func (u *UserRegistrationDto) Validation() error {
+	return nil
+}
