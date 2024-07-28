@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/nimyab/anonymous-chat/config"
+	"github.com/nimyab/anonymous-chat/internal/config"
 	"github.com/nimyab/anonymous-chat/internal/database"
 	"github.com/nimyab/anonymous-chat/internal/handlers/auth"
 	"github.com/nimyab/anonymous-chat/internal/websocket"

@@ -1,7 +1,7 @@
 package database
 
 import (
-	"github.com/nimyab/anonymous-chat/config"
+	"github.com/nimyab/anonymous-chat/internal/config"
 	"github.com/nimyab/anonymous-chat/internal/database/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
