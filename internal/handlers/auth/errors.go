@@ -6,6 +6,7 @@ import "errors"
 var (
 	ErrUserNotFound  = errors.New("user not found")
 	ErrWrongPassword = errors.New("wrong password")
+	ErrInternal      = errors.New("internal error")
 )
 
 // errors for auth handler

@@ -6,6 +6,7 @@ import (
 	"github.com/nimyab/anonymous-chat/internal/config"
 	"github.com/nimyab/anonymous-chat/internal/database"
 	"github.com/nimyab/anonymous-chat/internal/handlers/auth"
+	"github.com/nimyab/anonymous-chat/internal/jwt"
 	"github.com/nimyab/anonymous-chat/internal/websocket"
 	"github.com/nimyab/anonymous-chat/pkg/validators"
 )
@@ -31,13 +32,15 @@ func main() {
 	api := e.Group("/api")
 
 	// auth routes
-	api.POST("/login", authHandler.Login)
-	api.POST("/registration", authHandler.Registration)
-	api.POST("/logout", authHandler.Logout)
+	authRoutes := api.Group("/auth")
+	authRoutes.POST("/login", authHandler.Login)
+	authRoutes.POST("/registration", authHandler.Registration)
+	authRoutes.POST("/logout", authHandler.Logout)
+	authRoutes.GET("/user-info", authHandler.UserInfo, jwt.Middleware())
 
 	// socket routes
 	api.GET("/ws", websocket.SocketConn)
 
-	e.Logger.Infof("Server start on %s port", cfg.PORT)
-	e.Logger.Fatal(e.Start(cfg.PORT))
+	e.Logger.Infof("Server start on %s port", cfg.Port)
+	e.Logger.Fatal(e.Start(cfg.Port))
 }

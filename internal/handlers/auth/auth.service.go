@@ -3,36 +3,50 @@ package auth
 import (
 	"github.com/nimyab/anonymous-chat/internal/database/models"
 	"github.com/nimyab/anonymous-chat/internal/handlers/auth/dtos"
+	"github.com/nimyab/anonymous-chat/internal/jwt"
 	"gorm.io/gorm"
+	"sync"
 )
 
 // todo: mutex
 type AuthService struct {
 	gorm *gorm.DB
+	mu   sync.Mutex
 }
 
 func NewAuthService(gorm *gorm.DB) *AuthService {
 	return &AuthService{gorm: gorm}
 }
 
-func (s *AuthService) Login(dto *dtos.UserLoginDto) (*models.User, error) {
+func (s *AuthService) Login(dto *dtos.UserLoginDto) (u *models.User, accessToken string, refreshToken string, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	user := models.User{
 		Login: dto.Login,
 	}
 	result := s.gorm.Find(&user)
 	if result.RowsAffected == 0 {
-		return nil, ErrUserNotFound
+		return nil, "", "", ErrUserNotFound
 	}
 
 	if err := user.ComparePasswords(dto.Password); err != nil {
-		return nil, ErrWrongPassword
+		return nil, "", "", ErrWrongPassword
 	}
 
-	return &user, nil
+	accessToken, refreshToken, err = jwt.CreateTokens(user.ID)
+	if err != nil {
+		// todo: log
+		return nil, "", "", ErrInternal
+	}
+
+	return &user, accessToken, refreshToken, nil
 }
 
 func (s *AuthService) Registration(dto *dtos.UserRegistrationDto) (*models.User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	user := models.User{
 		Login:    dto.Login,
 		Password: dto.Password,
@@ -54,4 +68,25 @@ func (s *AuthService) Registration(dto *dtos.UserRegistrationDto) (*models.User,
 	return &user, nil
 }
 
-func (s *AuthService) Logout() error { return nil }
+func (s *AuthService) Logout() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return nil
+}
+
+func (s *AuthService) UserInfo(userId uint) (*models.User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	user := models.User{
+		ID: userId,
+	}
+	
+	result := s.gorm.First(&user)
+	if result.RowsAffected == 0 {
+		return nil, ErrUserNotFound
+	}
+
+	return &user, nil
+}
