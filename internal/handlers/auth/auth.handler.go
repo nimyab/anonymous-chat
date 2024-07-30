@@ -4,6 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nimyab/anonymous-chat/internal/handlers/auth/dtos"
 	"github.com/nimyab/anonymous-chat/internal/jwt"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -22,7 +23,7 @@ func (handler *AuthHandler) Login(c echo.Context) error {
 	var dto dtos.UserLoginDto
 
 	if err := c.Bind(&dto); err != nil {
-		// todo: add logger
+		slog.Error(err.Error())
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
@@ -32,7 +33,7 @@ func (handler *AuthHandler) Login(c echo.Context) error {
 
 	user, accessToken, refreshToken, err := handler.authService.Login(&dto)
 	if err != nil {
-		// todo: add logger
+		slog.Error(err.Error())
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
@@ -54,7 +55,7 @@ func (handler *AuthHandler) Registration(c echo.Context) error {
 	var dto dtos.UserRegistrationDto
 
 	if err := c.Bind(&dto); err != nil {
-		// todo: add logger
+		slog.Error(err.Error())
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
@@ -64,7 +65,7 @@ func (handler *AuthHandler) Registration(c echo.Context) error {
 
 	user, err := handler.authService.Registration(&dto)
 	if err != nil {
-		// todo: add logger
+		slog.Error(err.Error())
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 	return c.JSON(http.StatusCreated, user)

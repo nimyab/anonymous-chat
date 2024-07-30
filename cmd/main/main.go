@@ -40,7 +40,7 @@ func main() {
 	authRoutes.GET("/user-info", authHandler.UserInfo, jwt.Middleware())
 
 	// socket routes
-	api.GET("/ws", websocket.SocketConn)
+	api.GET("/ws", websocket.SocketConn, jwt.Middleware())
 
 	e.Logger.Infof("Server start on %s port", cfg.Port)
 	e.Logger.Fatal(e.Start(cfg.Port))

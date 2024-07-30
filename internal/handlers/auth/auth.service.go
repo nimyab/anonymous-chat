@@ -5,10 +5,10 @@ import (
 	"github.com/nimyab/anonymous-chat/internal/handlers/auth/dtos"
 	"github.com/nimyab/anonymous-chat/internal/jwt"
 	"gorm.io/gorm"
+	"log/slog"
 	"sync"
 )
 
-// todo: mutex
 type AuthService struct {
 	gorm *gorm.DB
 	mu   sync.Mutex
@@ -36,7 +36,7 @@ func (s *AuthService) Login(dto *dtos.UserLoginDto) (u *models.User, accessToken
 
 	accessToken, refreshToken, err = jwt.GenerateTokens(user.ID)
 	if err != nil {
-		// todo: log
+		slog.Error(err.Error())
 		return nil, "", "", ErrInternal
 	}
 
