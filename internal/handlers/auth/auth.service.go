@@ -34,7 +34,7 @@ func (s *AuthService) Login(dto *dtos.UserLoginDto) (u *models.User, accessToken
 		return nil, "", "", ErrWrongPassword
 	}
 
-	accessToken, refreshToken, err = jwt.CreateTokens(user.ID)
+	accessToken, refreshToken, err = jwt.GenerateTokens(user.ID)
 	if err != nil {
 		// todo: log
 		return nil, "", "", ErrInternal
@@ -68,11 +68,21 @@ func (s *AuthService) Registration(dto *dtos.UserRegistrationDto) (*models.User,
 	return &user, nil
 }
 
-func (s *AuthService) Logout() error {
+func (s *AuthService) Refresh(refreshToken string) (newAccessToken string, newRefreshToken string, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return nil
+	userId, err := jwt.ParseToken(refreshToken)
+	if err != nil {
+		return "", "", err
+	}
+
+	newAccessToken, newRefreshToken, err = jwt.GenerateTokens(userId)
+	if err != nil {
+		return "", "", err
+	}
+
+	return newAccessToken, newRefreshToken, nil
 }
 
 func (s *AuthService) UserInfo(userId uint) (*models.User, error) {
@@ -82,7 +92,7 @@ func (s *AuthService) UserInfo(userId uint) (*models.User, error) {
 	user := models.User{
 		ID: userId,
 	}
-	
+
 	result := s.gorm.First(&user)
 	if result.RowsAffected == 0 {
 		return nil, ErrUserNotFound

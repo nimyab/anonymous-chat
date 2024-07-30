@@ -19,7 +19,20 @@ func GetUserId(c echo.Context) uint {
 	return claims.ID
 }
 
-func CreateTokens(userId uint) (accessToken string, refreshToken string, err error) {
+func ParseToken(tokenString string) (userId uint, err error) {
+	cfg := config.GetEnvConfig()
+
+	claim := &jwtCustomClaims{}
+	_, err = jwt.ParseWithClaims(tokenString, claim, func(token *jwt.Token) (interface{}, error) {
+		return []byte(cfg.Secret), nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return claim.ID, nil
+}
+
+func GenerateTokens(userId uint) (accessToken string, refreshToken string, err error) {
 	cfg := config.GetEnvConfig()
 
 	accessTime, err := strconv.Atoi(cfg.AccessTime)
@@ -40,7 +53,7 @@ func CreateTokens(userId uint) (accessToken string, refreshToken string, err err
 	refreshClaims := &jwtCustomClaims{
 		userId,
 		jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(refreshTime))),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * time.Duration(refreshTime))),
 		},
 	}
 

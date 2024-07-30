@@ -36,6 +36,7 @@ func main() {
 	authRoutes.POST("/login", authHandler.Login)
 	authRoutes.POST("/registration", authHandler.Registration)
 	authRoutes.POST("/logout", authHandler.Logout)
+	authRoutes.GET("/refresh", authHandler.Refresh)
 	authRoutes.GET("/user-info", authHandler.UserInfo, jwt.Middleware())
 
 	// socket routes

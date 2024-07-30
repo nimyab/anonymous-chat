@@ -18,16 +18,6 @@ func NewAuthHandler(authService *AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
-func createCookieRefreshToken(refreshToken string) *http.Cookie {
-	cookie := &http.Cookie{
-		Name:     "refresh_token",
-		Value:    refreshToken,
-		HttpOnly: true,
-		MaxAge:   CookiesMaxAge,
-	}
-	return cookie
-}
-
 func (handler *AuthHandler) Login(c echo.Context) error {
 	var dto dtos.UserLoginDto
 
@@ -46,7 +36,12 @@ func (handler *AuthHandler) Login(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	refreshCookie := createCookieRefreshToken(refreshToken)
+	refreshCookie := &http.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshToken,
+		HttpOnly: true,
+		MaxAge:   CookiesMaxAge,
+	}
 	c.SetCookie(refreshCookie)
 
 	return c.JSON(http.StatusOK, echo.Map{
@@ -84,6 +79,30 @@ func (handler *AuthHandler) Logout(c echo.Context) error {
 	}
 	c.SetCookie(cookie)
 	return c.JSON(http.StatusOK, echo.Map{})
+}
+
+func (handler *AuthHandler) Refresh(c echo.Context) error {
+	refreshToken, err := c.Cookie("refresh_token")
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, err.Error())
+	}
+
+	newAccessToken, newRefreshToken, err := handler.authService.Refresh(refreshToken.Value)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, err.Error())
+	}
+
+	refreshCookie := &http.Cookie{
+		Name:     "refresh_token",
+		Value:    newRefreshToken,
+		HttpOnly: true,
+		MaxAge:   CookiesMaxAge,
+	}
+	c.SetCookie(refreshCookie)
+
+	return c.JSON(http.StatusOK, echo.Map{
+		"access_token": newAccessToken,
+	})
 }
 
 func (handler *AuthHandler) UserInfo(c echo.Context) error {
