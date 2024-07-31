@@ -25,7 +25,7 @@ func (s *AuthService) Login(dto *dtos.UserLoginDto) (u *models.User, accessToken
 	user := models.User{
 		Login: dto.Login,
 	}
-	result := s.gorm.Find(&user)
+	result := s.gorm.Preload("Chats").Preload("Messages").First(&user)
 	if result.RowsAffected == 0 {
 		return nil, "", "", ErrUserNotFound
 	}
@@ -93,7 +93,7 @@ func (s *AuthService) UserInfo(userId uint) (*models.User, error) {
 		ID: userId,
 	}
 
-	result := s.gorm.First(&user)
+	result := s.gorm.Preload("Chats").Preload("Messages").First(&user)
 	if result.RowsAffected == 0 {
 		return nil, ErrUserNotFound
 	}

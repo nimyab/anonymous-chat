@@ -6,6 +6,7 @@ import (
 	"github.com/nimyab/anonymous-chat/internal/config"
 	"github.com/nimyab/anonymous-chat/internal/database"
 	"github.com/nimyab/anonymous-chat/internal/handlers/auth"
+	"github.com/nimyab/anonymous-chat/internal/handlers/chat"
 	"github.com/nimyab/anonymous-chat/internal/jwt"
 	"github.com/nimyab/anonymous-chat/internal/websocket"
 	"github.com/nimyab/anonymous-chat/pkg/validators"
@@ -20,11 +21,13 @@ func main() {
 
 	// services
 	authService := auth.NewAuthService(db)
+	chatService := chat.NewChatService(db)
 
 	// handlers
 	authHandler := auth.NewAuthHandler(authService)
+	chatHandler := chat.NewChatHandler(chatService)
 
-	e.Validator = validators.NewApiValidator()
+	e.Validator = validators.NewServerValidator()
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format: "${time_rfc3339}\t${method}\t${uri}\tstatus ${status}\tuser agent ${user_agent}\n",
 	}))
@@ -38,6 +41,12 @@ func main() {
 	authRoutes.POST("/logout", authHandler.Logout)
 	authRoutes.GET("/refresh", authHandler.Refresh)
 	authRoutes.GET("/user-info", authHandler.UserInfo, jwt.Middleware())
+
+	// chat routes
+	chatRoutes := api.Group("/chat", jwt.Middleware())
+	chatRoutes.GET("", chatHandler.GetAllChats)
+	chatRoutes.GET("/:id", chatHandler.GetChatById)
+	//chatRoutes.POST("", chatHandler.CreateChat)
 
 	// socket routes
 	api.GET("/ws", websocket.SocketConn, jwt.Middleware())

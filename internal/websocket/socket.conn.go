@@ -3,6 +3,7 @@ package websocket
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/nimyab/anonymous-chat/internal/jwt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -27,15 +28,12 @@ var upgrader = websocket.Upgrader{
 }
 
 func SocketConn(c echo.Context) error {
-
-	id := c.Request().Header.Get("Id")
-	if id == "" {
-		return c.JSON(http.StatusBadRequest, struct{ message string }{message: "Not found ID"})
-	}
+	userId := jwt.GetUserId(c)
 
 	conn, err := upgrader.Upgrade(c.Response().Writer, c.Request(), nil)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, struct{ message string }{message: "Error upgrading to websockets"})
+		slog.Error(err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, ErrUpgradingToWebsocket)
 	}
 
 	hub := GetSocketHub()
@@ -45,11 +43,11 @@ func SocketConn(c echo.Context) error {
 		messageChat: make(chan Message),
 	}
 
-	slog.Info(fmt.Sprintf("New connection %s", id))
+	slog.Info(fmt.Sprintf("New connection %d", userId))
 
 	hub.register <- &SocketClientWithId{
 		Client: client,
-		Id:     id,
+		ID:     userId,
 	}
 
 	go client.ReadPump()
@@ -58,31 +56,20 @@ func SocketConn(c echo.Context) error {
 	return nil
 }
 
-type Message struct {
-	MessageName string      `json:"message_name"`
-	MessageBody interface{} `json:"message_body"`
-	Addressee   string      `json:"addressee"`
-}
-
-type SocketClient struct {
-	conn *websocket.Conn
-
-	hub *SocketHub
-
-	messageChat chan Message
-}
-
 func (sc *SocketClient) ReadPump() {
 	defer func() {
 		sc.hub.unregister <- sc
-		sc.conn.Close()
+		if err := sc.conn.Close(); err != nil {
+			slog.Error(err.Error())
+		}
 	}()
 
 	sc.conn.SetReadLimit(maxMessageSize)
-	sc.conn.SetReadDeadline(time.Now().Add(pongWait))
+	if err := sc.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		slog.Error(err.Error())
+	}
 	sc.conn.SetPongHandler(func(appData string) error {
-		sc.conn.SetReadDeadline(time.Now().Add(pongWait))
-		return nil
+		return sc.conn.SetReadDeadline(time.Now().Add(pongWait))
 	})
 
 	for {
@@ -98,6 +85,11 @@ func (sc *SocketClient) ReadPump() {
 			break
 		}
 
+		if err := sc.hub.serverValidator.Validate(mess); err != nil {
+			slog.Error(err.Error())
+			break
+		}
+
 		sc.hub.broadcast <- mess
 	}
 }
@@ -106,7 +98,9 @@ func (sc *SocketClient) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		sc.conn.Close()
+		if err := sc.conn.Close(); err != nil {
+			slog.Error(err.Error())
+		}
 	}()
 
 	for {
@@ -116,15 +110,21 @@ func (sc *SocketClient) WritePump() {
 				sc.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
+
 			bytes, err := json.Marshal(message)
-			sc.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := sc.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+				slog.Error(err.Error())
+			}
+
 			if err != nil {
 				sc.conn.WriteMessage(websocket.TextMessage, []byte("Marshalling error message"))
 			} else {
 				sc.conn.WriteMessage(websocket.TextMessage, bytes)
 			}
 		case <-ticker.C:
-			sc.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := sc.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+				slog.Error(err.Error())
+			}
 			if err := sc.conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				return
 			}
