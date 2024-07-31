@@ -64,10 +64,7 @@ func (h *SocketHub) handleSearchInterlocutor(messageWithSocket *MessageWithSocke
 func (h *SocketHub) handleSendMessage(messageWithSocket *MessageWithSocketClient) {
 	data := messageWithSocket.Message.MessageBody.(*dtos.SendMessage)
 	if err := h.serverValidator.Validate(data); err != nil {
-		messageWithSocket.SocketClient.messageChat <- &Message{
-			MessageName: "error",
-			MessageBody: err.Error(),
-		}
+		messageWithSocket.SocketClient.SendError(err)
 		return
 	}
 	// todo
@@ -76,10 +73,7 @@ func (h *SocketHub) handleSendMessage(messageWithSocket *MessageWithSocketClient
 func (h *SocketHub) handleRequestSaveChat(messageWithSocket *MessageWithSocketClient) {
 	data := messageWithSocket.Message.MessageBody.(*dtos.SaveChatRequest)
 	if err := h.serverValidator.Validate(data); err != nil {
-		messageWithSocket.SocketClient.messageChat <- &Message{
-			MessageName: "error",
-			MessageBody: err.Error(),
-		}
+		messageWithSocket.SocketClient.SendError(err)
 		return
 	}
 	// todo
@@ -88,10 +82,7 @@ func (h *SocketHub) handleRequestSaveChat(messageWithSocket *MessageWithSocketCl
 func (h *SocketHub) handleAcceptSaveChat(messageWithSocket *MessageWithSocketClient) {
 	data := messageWithSocket.Message.MessageBody.(*dtos.SaveChatResponse)
 	if err := h.serverValidator.Validate(data); err != nil {
-		messageWithSocket.SocketClient.messageChat <- &Message{
-			MessageName: "error",
-			MessageBody: err.Error(),
-		}
+		messageWithSocket.SocketClient.SendError(err)
 		return
 	}
 	// todo
@@ -100,10 +91,7 @@ func (h *SocketHub) handleAcceptSaveChat(messageWithSocket *MessageWithSocketCli
 func (h *SocketHub) handleRejectSaveChat(messageWithSocket *MessageWithSocketClient) {
 	data := messageWithSocket.Message.MessageBody.(*dtos.SaveChatResponse)
 	if err := h.serverValidator.Validate(data); err != nil {
-		messageWithSocket.SocketClient.messageChat <- &Message{
-			MessageName: "error",
-			MessageBody: err.Error(),
-		}
+		messageWithSocket.SocketClient.SendError(err)
 		return
 	}
 	// todo

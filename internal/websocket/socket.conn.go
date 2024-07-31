@@ -22,6 +22,17 @@ const (
 	maxMessageSize = 512
 )
 
+type SocketClient struct {
+	conn        *websocket.Conn
+	hub         *SocketHub
+	messageChat chan *Message
+}
+
+type SocketClientWithId struct {
+	Client *SocketClient
+	ID     uint
+}
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -129,5 +140,12 @@ func (sc *SocketClient) WritePump() {
 				return
 			}
 		}
+	}
+}
+
+func (sc *SocketClient) SendError(err error) {
+	sc.messageChat <- &Message{
+		MessageName: "error",
+		MessageBody: err.Error(),
 	}
 }
