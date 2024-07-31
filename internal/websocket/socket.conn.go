@@ -40,7 +40,7 @@ func SocketConn(c echo.Context) error {
 	client := &SocketClient{
 		conn:        conn,
 		hub:         hub,
-		messageChat: make(chan Message),
+		messageChat: make(chan *Message),
 	}
 
 	slog.Info(fmt.Sprintf("New connection %d", userId))
@@ -85,12 +85,12 @@ func (sc *SocketClient) ReadPump() {
 			break
 		}
 
-		if err := sc.hub.serverValidator.Validate(mess); err != nil {
+		if err := sc.hub.serverValidator.Validate(&mess); err != nil {
 			slog.Error(err.Error())
 			break
 		}
 
-		sc.hub.broadcast <- mess
+		sc.hub.broadcast <- &MessageWithSocketClient{Message: &mess, SocketClient: sc}
 	}
 }
 

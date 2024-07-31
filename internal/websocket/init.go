@@ -1,6 +1,9 @@
 package websocket
 
-import "github.com/nimyab/anonymous-chat/pkg/validators"
+import (
+	"github.com/nimyab/anonymous-chat/pkg/validators"
+	"log/slog"
+)
 
 var hub *SocketHub
 
@@ -10,7 +13,7 @@ func GetSocketHub() *SocketHub {
 
 func init() {
 	hub = &SocketHub{
-		broadcast:       make(chan Message),
+		broadcast:       make(chan *MessageWithSocketClient),
 		register:        make(chan *SocketClientWithId),
 		unregister:      make(chan *SocketClient),
 		getClientById:   make(map[uint]*SocketClient),
@@ -18,4 +21,5 @@ func init() {
 		serverValidator: validators.NewServerValidator(),
 	}
 	go hub.Run()
+	slog.Info("socket hub start")
 }
