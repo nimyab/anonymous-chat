@@ -93,12 +93,14 @@ func (sc *SocketClient) ReadPump() {
 		var mess Message
 		if err := json.Unmarshal(message, &mess); err != nil {
 			slog.Error(err.Error())
-			break
+			sc.SendError(err)
+			continue
 		}
 
 		if err := sc.hub.serverValidator.Validate(&mess); err != nil {
 			slog.Error(err.Error())
-			break
+			sc.SendError(err)
+			continue
 		}
 
 		sc.hub.broadcast <- &MessageWithSocketClient{Message: &mess, SocketClient: sc}
@@ -109,9 +111,6 @@ func (sc *SocketClient) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		if err := sc.conn.Close(); err != nil {
-			slog.Error(err.Error())
-		}
 	}()
 
 	for {
@@ -146,6 +145,8 @@ func (sc *SocketClient) WritePump() {
 func (sc *SocketClient) SendError(err error) {
 	sc.messageChat <- &Message{
 		MessageName: "error",
-		MessageBody: err.Error(),
+		MessageBody: map[string]interface{}{
+			"message": err.Error(),
+		},
 	}
 }

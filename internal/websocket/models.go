@@ -1,8 +1,8 @@
 package websocket
 
 type Message struct {
-	MessageName string      `json:"message_name" validate:"required"`
-	MessageBody interface{} `json:"message_body" validate:"required"`
+	MessageName string                 `json:"message_name" validate:"required"`
+	MessageBody map[string]interface{} `json:"message_body" validate:"required"`
 }
 
 type MessageWithSocketClient struct {
