@@ -1,10 +1,6 @@
 package websocket
 
-import (
-	"github.com/mitchellh/mapstructure"
-	"github.com/nimyab/anonymous-chat/internal/websocket/dtos"
-	"github.com/nimyab/anonymous-chat/pkg/validators"
-)
+import "github.com/nimyab/anonymous-chat/internal/websocket/dtos"
 
 type SocketHub struct {
 	broadcast chan *MessageWithSocketClient
@@ -15,7 +11,7 @@ type SocketHub struct {
 	getClientById map[uint]*SocketClient
 	getIdByClient map[*SocketClient]uint
 
-	serverValidator *validators.ServerValidator
+	websocketHandler *WebsocketService
 }
 
 func (h *SocketHub) Run() {
@@ -66,11 +62,7 @@ func (h *SocketHub) handleSearchInterlocutor(messageWithSocket *MessageWithSocke
 
 func (h *SocketHub) handleSendMessage(messageWithSocket *MessageWithSocketClient) {
 	var messageBody dtos.SendMessage
-	if err := mapstructure.Decode(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
-		messageWithSocket.SocketClient.SendError(ErrInvalidMessageBodyFormat)
-		return
-	}
-	if err := h.serverValidator.Validate(&messageBody); err != nil {
+	if err := h.websocketHandler.decodeAndValidate(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
 		messageWithSocket.SocketClient.SendError(err)
 		return
 	}
@@ -79,11 +71,7 @@ func (h *SocketHub) handleSendMessage(messageWithSocket *MessageWithSocketClient
 
 func (h *SocketHub) handleRequestSaveChat(messageWithSocket *MessageWithSocketClient) {
 	var messageBody dtos.SaveChatRequest
-	if err := mapstructure.Decode(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
-		messageWithSocket.SocketClient.SendError(ErrInvalidMessageBodyFormat)
-		return
-	}
-	if err := h.serverValidator.Validate(messageBody); err != nil {
+	if err := h.websocketHandler.decodeAndValidate(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
 		messageWithSocket.SocketClient.SendError(err)
 		return
 	}
@@ -92,11 +80,7 @@ func (h *SocketHub) handleRequestSaveChat(messageWithSocket *MessageWithSocketCl
 
 func (h *SocketHub) handleAcceptSaveChat(messageWithSocket *MessageWithSocketClient) {
 	var messageBody dtos.SaveChatResponse
-	if err := mapstructure.Decode(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
-		messageWithSocket.SocketClient.SendError(ErrInvalidMessageBodyFormat)
-		return
-	}
-	if err := h.serverValidator.Validate(messageBody); err != nil {
+	if err := h.websocketHandler.decodeAndValidate(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
 		messageWithSocket.SocketClient.SendError(err)
 		return
 	}
@@ -105,11 +89,7 @@ func (h *SocketHub) handleAcceptSaveChat(messageWithSocket *MessageWithSocketCli
 
 func (h *SocketHub) handleRejectSaveChat(messageWithSocket *MessageWithSocketClient) {
 	var messageBody dtos.SaveChatResponse
-	if err := mapstructure.Decode(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
-		messageWithSocket.SocketClient.SendError(ErrInvalidMessageBodyFormat)
-		return
-	}
-	if err := h.serverValidator.Validate(messageBody); err != nil {
+	if err := h.websocketHandler.decodeAndValidate(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
 		messageWithSocket.SocketClient.SendError(err)
 		return
 	}

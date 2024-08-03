@@ -97,7 +97,7 @@ func (sc *SocketClient) ReadPump() {
 			continue
 		}
 
-		if err := sc.hub.serverValidator.Validate(&mess); err != nil {
+		if err := sc.hub.websocketHandler.validator.Validate(&mess); err != nil {
 			slog.Error(err.Error())
 			sc.SendError(err)
 			continue

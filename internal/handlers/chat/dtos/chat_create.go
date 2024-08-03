@@ -1,5 +1,5 @@
 package dtos
 
-type ChatCreate struct {
+type ChatCreateDto struct {
 	UserIds []uint `json:"user_ids" validate:"required"`
 }

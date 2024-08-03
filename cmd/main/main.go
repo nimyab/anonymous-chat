@@ -7,6 +7,7 @@ import (
 	"github.com/nimyab/anonymous-chat/internal/database"
 	"github.com/nimyab/anonymous-chat/internal/handlers/auth"
 	"github.com/nimyab/anonymous-chat/internal/handlers/chat"
+	"github.com/nimyab/anonymous-chat/internal/handlers/message"
 	"github.com/nimyab/anonymous-chat/internal/jwt"
 	"github.com/nimyab/anonymous-chat/internal/websocket"
 	"github.com/nimyab/anonymous-chat/pkg/validators"
@@ -22,10 +23,12 @@ func main() {
 	// services
 	authService := auth.NewAuthService(db)
 	chatService := chat.NewChatService(db)
+	messageService := message.NewMessageService(db)
 
 	// handlers
 	authHandler := auth.NewAuthHandler(authService)
 	chatHandler := chat.NewChatHandler(chatService)
+	messageHandler := message.NewChatHandler(messageService)
 
 	e.Validator = validators.NewServerValidator()
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
@@ -48,7 +51,12 @@ func main() {
 	chatRoutes.GET("/:id", chatHandler.GetChatById)
 	//chatRoutes.POST("", chatHandler.CreateChat)
 
+	// message routes
+	messageRoutes := api.Group("/message", jwt.Middleware())
+	messageRoutes.GET("", messageHandler.HandleMessage)
+
 	// socket routes
+	websocket.StartSocketHub(chatService, messageService)
 	api.GET("/ws", websocket.SocketConn, jwt.Middleware())
 
 	e.Logger.Infof("Server start on %s port", cfg.Port)
