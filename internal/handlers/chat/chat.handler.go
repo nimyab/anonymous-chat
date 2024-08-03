@@ -3,6 +3,7 @@ package chat
 import (
 	"errors"
 	"github.com/labstack/echo/v4"
+	"github.com/nimyab/anonymous-chat/internal/handlers/chat/dtos"
 	"github.com/nimyab/anonymous-chat/internal/jwt"
 	"net/http"
 	"strconv"
@@ -16,23 +17,23 @@ func NewChatHandler(chatService *ChatService) *ChatHandler {
 	return &ChatHandler{chatService: chatService}
 }
 
-//func (handler *ChatHandler) CreateChat(c echo.Context) error {
-//	var dto dtos.ChatCreate
-//
-//	if err := c.Bind(&dto); err != nil {
-//		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-//	}
-//	if err := c.Validate(&dto); err != nil {
-//		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-//	}
-//
-//	chat, err := handler.chatService.CreateChat(dto.UserIds)
-//	if err != nil {
-//		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-//	}
-//
-//	return c.JSON(http.StatusOK, echo.Map{"chat": chat})
-//}
+func (handler *ChatHandler) CreateChat(c echo.Context) error {
+	var dto dtos.ChatCreateDto
+
+	if err := c.Bind(&dto); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	if err := c.Validate(&dto); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	chat, err := handler.chatService.CreateChat(dto.UserIds)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{"chat": chat})
+}
 
 func (handler *ChatHandler) GetAllChats(c echo.Context) error {
 	userId := jwt.GetUserId(c)

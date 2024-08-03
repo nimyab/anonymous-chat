@@ -63,6 +63,7 @@ func (s *AuthService) Registration(dto *dtos.UserRegistrationDto) (*models.User,
 		if result.RowsAffected == 0 {
 			return nil, result.Error
 		}
+		slog.Error(result.Error.Error())
 		return &user, result.Error
 	}
 	return &user, nil

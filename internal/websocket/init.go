@@ -10,6 +10,9 @@ import (
 var hub *SocketHub
 
 func GetSocketHub() *SocketHub {
+	if hub == nil {
+		panic("socket hub is nil")
+	}
 	return hub
 }
 
@@ -20,10 +23,10 @@ func StartSocketHub(chatService *chat.ChatService, messageService *message.Messa
 		unregister:    make(chan *SocketClient),
 		getClientById: make(map[uint]*SocketClient),
 		getIdByClient: make(map[*SocketClient]uint),
-		websocketHandler: &WebsocketService{
+		validator:     validators.NewServerValidator(),
+		websocketService: &WebsocketService{
 			chatService:    chatService,
 			messageService: messageService,
-			validator:      validators.NewServerValidator(),
 		},
 	}
 	go hub.Run()

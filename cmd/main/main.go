@@ -49,11 +49,12 @@ func main() {
 	chatRoutes := api.Group("/chat", jwt.Middleware())
 	chatRoutes.GET("", chatHandler.GetAllChats)
 	chatRoutes.GET("/:id", chatHandler.GetChatById)
-	//chatRoutes.POST("", chatHandler.CreateChat)
+	chatRoutes.POST("", chatHandler.CreateChat)
 
 	// message routes
 	messageRoutes := api.Group("/message", jwt.Middleware())
-	messageRoutes.GET("", messageHandler.HandleMessage)
+	messageRoutes.POST("", messageHandler.CreateMessage)
+	messageRoutes.GET("/:id", messageHandler.GetAllMessageByChatId)
 
 	// socket routes
 	websocket.StartSocketHub(chatService, messageService)

@@ -25,7 +25,7 @@ const (
 type SocketClient struct {
 	conn        *websocket.Conn
 	hub         *SocketHub
-	messageChat chan *Message
+	messageChan chan *Message
 }
 
 type SocketClientWithId struct {
@@ -51,7 +51,7 @@ func SocketConn(c echo.Context) error {
 	client := &SocketClient{
 		conn:        conn,
 		hub:         hub,
-		messageChat: make(chan *Message),
+		messageChan: make(chan *Message),
 	}
 
 	slog.Info(fmt.Sprintf("New connection %d", userId))
@@ -97,7 +97,7 @@ func (sc *SocketClient) ReadPump() {
 			continue
 		}
 
-		if err := sc.hub.websocketHandler.validator.Validate(&mess); err != nil {
+		if err := sc.hub.validator.Validate(&mess); err != nil {
 			slog.Error(err.Error())
 			sc.SendError(err)
 			continue
@@ -115,7 +115,7 @@ func (sc *SocketClient) WritePump() {
 
 	for {
 		select {
-		case message, ok := <-sc.messageChat:
+		case message, ok := <-sc.messageChan:
 			if !ok {
 				sc.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
@@ -143,7 +143,7 @@ func (sc *SocketClient) WritePump() {
 }
 
 func (sc *SocketClient) SendError(err error) {
-	sc.messageChat <- &Message{
+	sc.messageChan <- &Message{
 		MessageName: "error",
 		MessageBody: map[string]interface{}{
 			"message": err.Error(),

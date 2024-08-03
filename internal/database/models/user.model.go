@@ -16,7 +16,7 @@ type User struct {
 	IsAdmin  bool   `gorm:"default:false" json:"is_admin"`
 
 	Chats    []Chat    `gorm:"many2many:user_chats" json:"chats"`
-	Messages []Message `gorm:"foreignKey:UserID;references:ID" json:"messages"`
+	Messages []Message `gorm:"foreignKey:ID;references:ID" json:"messages"`
 }
 
 func (u *User) GeneratePassword() error {

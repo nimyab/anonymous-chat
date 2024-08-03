@@ -8,5 +8,5 @@ type Chat struct {
 	UpdatedAt time.Time `json:"updated_at"`
 
 	Users    []User    `gorm:"many2many:user_chats" json:"users"`
-	Messages []Message `gorm:"foreignKey:ChatID;references:ID" json:"messages"`
+	Messages []Message `gorm:"foreignKey:ID;references:ID" json:"messages"`
 }

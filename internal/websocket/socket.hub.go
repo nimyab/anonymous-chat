@@ -1,6 +1,12 @@
 package websocket
 
-import "github.com/nimyab/anonymous-chat/internal/websocket/dtos"
+import (
+	"fmt"
+	"github.com/mitchellh/mapstructure"
+	messageDtos "github.com/nimyab/anonymous-chat/internal/handlers/message/dtos"
+	"github.com/nimyab/anonymous-chat/internal/websocket/dtos"
+	"github.com/nimyab/anonymous-chat/pkg/validators"
+)
 
 type SocketHub struct {
 	broadcast chan *MessageWithSocketClient
@@ -11,7 +17,9 @@ type SocketHub struct {
 	getClientById map[uint]*SocketClient
 	getIdByClient map[*SocketClient]uint
 
-	websocketHandler *WebsocketService
+	validator *validators.ServerValidator
+
+	websocketService *WebsocketService
 }
 
 func (h *SocketHub) Run() {
@@ -27,6 +35,17 @@ func (h *SocketHub) Run() {
 	}
 }
 
+func (h *SocketHub) decodeAndValidate(input interface{}, messageBody interface{}) error {
+	fmt.Println(messageBody)
+	if err := mapstructure.Decode(input, messageBody); err != nil {
+		return ErrInvalidMessageBodyFormat
+	}
+	if err := h.validator.Validate(&messageBody); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (h *SocketHub) registerClient(client *SocketClientWithId) {
 	h.getIdByClient[client.Client] = client.ID
 	h.getClientById[client.ID] = client.Client
@@ -36,7 +55,7 @@ func (h *SocketHub) unregisterClient(client *SocketClient) {
 	id := h.getIdByClient[client]
 	delete(h.getIdByClient, client)
 	delete(h.getClientById, id)
-	close(client.messageChat)
+	close(client.messageChan)
 }
 
 func (h *SocketHub) handleMessage(messageWithSocket *MessageWithSocketClient) {
@@ -62,16 +81,39 @@ func (h *SocketHub) handleSearchInterlocutor(messageWithSocket *MessageWithSocke
 
 func (h *SocketHub) handleSendMessage(messageWithSocket *MessageWithSocketClient) {
 	var messageBody dtos.SendMessage
-	if err := h.websocketHandler.decodeAndValidate(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
+	if err := h.decodeAndValidate(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
 		messageWithSocket.SocketClient.SendError(err)
 		return
 	}
-	// todo
+	userId, ok := h.getIdByClient[messageWithSocket.SocketClient]
+	if !ok {
+		messageWithSocket.SocketClient.SendError(ErrUserIdNotFound)
+		return
+	}
+	messageDto := &messageDtos.MessageCreateDto{
+		Text:   messageBody.Text,
+		ChatId: messageBody.ChatID,
+		UserId: userId,
+	}
+	message, userIds, err := h.websocketService.messageService.CreateMessage(messageDto)
+	if err != nil {
+		messageWithSocket.SocketClient.SendError(err)
+	}
+
+	mess := &Message{MessageName: "send_message", MessageBody: map[string]interface{}{
+		"message": message,
+	}}
+	for _, userId := range userIds {
+		client, ok := h.getClientById[userId]
+		if ok {
+			client.messageChan <- mess
+		}
+	}
 }
 
 func (h *SocketHub) handleRequestSaveChat(messageWithSocket *MessageWithSocketClient) {
 	var messageBody dtos.SaveChatRequest
-	if err := h.websocketHandler.decodeAndValidate(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
+	if err := h.decodeAndValidate(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
 		messageWithSocket.SocketClient.SendError(err)
 		return
 	}
@@ -80,7 +122,7 @@ func (h *SocketHub) handleRequestSaveChat(messageWithSocket *MessageWithSocketCl
 
 func (h *SocketHub) handleAcceptSaveChat(messageWithSocket *MessageWithSocketClient) {
 	var messageBody dtos.SaveChatResponse
-	if err := h.websocketHandler.decodeAndValidate(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
+	if err := h.decodeAndValidate(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
 		messageWithSocket.SocketClient.SendError(err)
 		return
 	}
@@ -89,7 +131,7 @@ func (h *SocketHub) handleAcceptSaveChat(messageWithSocket *MessageWithSocketCli
 
 func (h *SocketHub) handleRejectSaveChat(messageWithSocket *MessageWithSocketClient) {
 	var messageBody dtos.SaveChatResponse
-	if err := h.websocketHandler.decodeAndValidate(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
+	if err := h.decodeAndValidate(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
 		messageWithSocket.SocketClient.SendError(err)
 		return
 	}
