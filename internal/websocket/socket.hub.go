@@ -64,7 +64,18 @@ func (h *SocketHub) handleMessage(messageWithSocket *MessageWithSocketClient) {
 }
 
 func (h *SocketHub) handleSearchInterlocutor(messageWithSocket *MessageWithSocketClient) {
-	// todo
+	userId, ok := h.getIdByClient[messageWithSocket.SocketClient]
+	if !ok {
+		messageWithSocket.SocketClient.SendError(ErrUserIdNotFound)
+		return
+	}
+	h.websocketService.userInSearch.Push(userId)
+	messageWithSocket.SocketClient.messageChan <- &Message{
+		"search_interlocutor",
+		map[string]interface{}{
+			"start": true,
+		},
+	}
 }
 
 func (h *SocketHub) handleSendMessage(messageWithSocket *MessageWithSocketClient) {
@@ -113,6 +124,19 @@ func (h *SocketHub) handleRequestSaveChat(messageWithSocket *MessageWithSocketCl
 	if err := h.validator.Validate(&messageBody); err != nil {
 		messageWithSocket.SocketClient.SendError(err)
 		return
+	}
+
+	chat, err := h.websocketService.chatService.GetChatById(messageBody.ChatID)
+	if err != nil {
+		messageWithSocket.SocketClient.SendError(err)
+		return
+	}
+	for _, user := range chat.Users {
+		client, ok := h.getClientById[user.ID]
+		if !ok {
+			messageWithSocket.SocketClient.SendError(ErrUserIdNotFound)
+		}
+		client.messageChan <- &Message{}
 	}
 	// todo
 }

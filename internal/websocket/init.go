@@ -27,6 +27,7 @@ func StartSocketHub(chatService *chat.ChatService, messageService *message.Messa
 		websocketService: &WebsocketService{
 			chatService:    chatService,
 			messageService: messageService,
+			userInSearch:   NewUserQueue(),
 		},
 	}
 	go hub.Run()
