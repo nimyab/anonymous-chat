@@ -53,10 +53,10 @@ func (ms *MessageService) GetAllMessageByChatId(chatId uint) ([]*models.Message,
 
 	var messages []*models.Message
 	result := ms.gorm.
-		Preload("Chats").
-		Joins("JOIN chats ON messages.chat_id = chats.id").
-		Where("chats.id = ?", chatId).
+		Model(&models.Message{}).
+		Where("chat_id = ?", chatId).
 		Find(&messages)
+
 	if result.Error != nil {
 		return nil, result.Error
 	}
