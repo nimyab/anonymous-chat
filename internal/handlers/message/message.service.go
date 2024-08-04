@@ -1,7 +1,6 @@
 package message
 
 import (
-	"fmt"
 	"github.com/nimyab/anonymous-chat/internal/database/models"
 	"github.com/nimyab/anonymous-chat/internal/handlers/message/dtos"
 	"gorm.io/gorm"
@@ -26,7 +25,6 @@ func (ms *MessageService) CreateMessage(dto *dtos.MessageCreateDto) (*models.Mes
 		ChatID: dto.ChatId,
 		UserID: dto.UserId,
 	}
-	fmt.Println(message)
 	result := ms.gorm.Create(&message)
 	if result.Error != nil {
 		return nil, nil, result.Error
