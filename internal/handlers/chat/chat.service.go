@@ -81,3 +81,37 @@ func (s *ChatService) GetChatById(chatId uint) (*models.Chat, error) {
 
 	return chat, nil
 }
+
+func (s *ChatService) DeleteChat(chatId uint) (userIds []uint, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	chat := &models.Chat{
+		ID: chatId,
+	}
+
+	if err := s.gorm.Preload("Users").First(&chat).Error; err != nil {
+		slog.Error(err.Error())
+		return nil, ErrInternal
+	}
+	for _, user := range chat.Users {
+		userIds = append(userIds, user.ID)
+	}
+
+	if err := s.gorm.Model(&chat).Association("Users").Delete(chat.Users); err != nil {
+		slog.Error(err.Error())
+		return nil, ErrInternal
+	}
+
+	if err := s.gorm.Where("chat_id = ?", chatId).Delete(&models.Message{}).Error; err != nil {
+		slog.Error(err.Error())
+		return nil, ErrInternal
+	}
+
+	if err := s.gorm.Delete(&chat).Error; err != nil {
+		slog.Error(err.Error())
+		return nil, ErrInternal
+	}
+
+	return userIds, nil
+}

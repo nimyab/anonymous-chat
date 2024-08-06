@@ -17,17 +17,20 @@ func GetSocketHub() *SocketHub {
 }
 
 func StartSocketHub(chatService *chat.ChatService, messageService *message.MessageService) {
+	searchUsers := make(chan []uint)
+
 	hub = &SocketHub{
 		broadcast:     make(chan *MessageWithSocketClient),
 		register:      make(chan *SocketClientWithId),
 		unregister:    make(chan *SocketClient),
+		searchUsers:   searchUsers,
 		getClientById: make(map[uint]*SocketClient),
 		getIdByClient: make(map[*SocketClient]uint),
 		validator:     validators.NewServerValidator(),
 		websocketService: &WebsocketService{
 			chatService:    chatService,
 			messageService: messageService,
-			userInSearch:   NewUserQueue(),
+			userInSearch:   NewUserQueue(searchUsers),
 		},
 	}
 	go hub.Run()

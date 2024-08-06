@@ -7,11 +7,19 @@ import (
 	"github.com/nimyab/anonymous-chat/pkg/validators"
 )
 
+// message names
+
+// here, there
+// search_interlocutor, found_interlocutor
+// send_message, send_message
+// delete_chat, delete_chat
+
 type SocketHub struct {
 	broadcast chan *MessageWithSocketClient
 
-	register   chan *SocketClientWithId
-	unregister chan *SocketClient
+	register    chan *SocketClientWithId
+	unregister  chan *SocketClient
+	searchUsers <-chan []uint
 
 	getClientById map[uint]*SocketClient
 	getIdByClient map[*SocketClient]uint
@@ -28,6 +36,8 @@ func (h *SocketHub) Run() {
 			h.registerClient(client)
 		case client := <-h.unregister:
 			h.unregisterClient(client)
+		case userIds := <-h.searchUsers:
+			h.handleFoundInterlocutor(userIds)
 		case messageWithSocket := <-h.broadcast:
 			h.handleMessage(messageWithSocket)
 		}
@@ -41,6 +51,7 @@ func (h *SocketHub) registerClient(client *SocketClientWithId) {
 
 func (h *SocketHub) unregisterClient(client *SocketClient) {
 	id := h.getIdByClient[client]
+	h.websocketService.userInSearch.DeleteUserId(id)
 	delete(h.getIdByClient, client)
 	delete(h.getClientById, id)
 	close(client.messageChan)
@@ -52,28 +63,41 @@ func (h *SocketHub) handleMessage(messageWithSocket *MessageWithSocketClient) {
 		h.handleSearchInterlocutor(messageWithSocket)
 	case "send_message":
 		h.handleSendMessage(messageWithSocket)
-	case "request_save_chat":
-		h.handleRequestSaveChat(messageWithSocket)
-	case "accept_save_chat":
-		h.handleAcceptSaveChat(messageWithSocket)
-	case "reject_save_chat":
-		h.handleRejectSaveChat(messageWithSocket)
+	case "delete_chat":
+		h.deleteChat(messageWithSocket)
 	default:
 		messageWithSocket.SocketClient.SendError(ErrSuchMessageNameNoExist)
+	}
+}
+
+func (h *SocketHub) handleFoundInterlocutor(userIds []uint) {
+	chat, err := h.websocketService.chatService.CreateChat(userIds)
+	if err != nil {
+		h.websocketService.userInSearch.Push(userIds[0])
+		h.websocketService.userInSearch.Push(userIds[1])
+		return
+	}
+	mess := &Message{MessageName: "found_interlocutor", MessageBody: map[string]interface{}{
+		"chat": chat,
+	}}
+	for _, userId := range userIds {
+		client, ok := h.getClientById[userId]
+		if ok {
+			client.messageChan <- mess
+		}
 	}
 }
 
 func (h *SocketHub) handleSearchInterlocutor(messageWithSocket *MessageWithSocketClient) {
 	userId, ok := h.getIdByClient[messageWithSocket.SocketClient]
 	if !ok {
-		messageWithSocket.SocketClient.SendError(ErrUserIdNotFound)
 		return
 	}
 	h.websocketService.userInSearch.Push(userId)
 	messageWithSocket.SocketClient.messageChan <- &Message{
 		"search_interlocutor",
 		map[string]interface{}{
-			"start": true,
+			"message": "start",
 		},
 	}
 }
@@ -91,7 +115,6 @@ func (h *SocketHub) handleSendMessage(messageWithSocket *MessageWithSocketClient
 
 	userId, ok := h.getIdByClient[messageWithSocket.SocketClient]
 	if !ok {
-		messageWithSocket.SocketClient.SendError(ErrUserIdNotFound)
 		return
 	}
 	messageDto := &messageDtos.MessageCreateDto{
@@ -114,9 +137,8 @@ func (h *SocketHub) handleSendMessage(messageWithSocket *MessageWithSocketClient
 		}
 	}
 }
-
-func (h *SocketHub) handleRequestSaveChat(messageWithSocket *MessageWithSocketClient) {
-	var messageBody dtos.SaveChatRequest
+func (h *SocketHub) deleteChat(messageWithSocket *MessageWithSocketClient) {
+	var messageBody dtos.DeleteChat
 	if err := mapstructure.Decode(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
 		messageWithSocket.SocketClient.SendError(ErrInvalidMessageBodyFormat)
 		return
@@ -126,43 +148,20 @@ func (h *SocketHub) handleRequestSaveChat(messageWithSocket *MessageWithSocketCl
 		return
 	}
 
-	chat, err := h.websocketService.chatService.GetChatById(messageBody.ChatID)
+	userIds, err := h.websocketService.chatService.DeleteChat(messageBody.ChatID)
 	if err != nil {
 		messageWithSocket.SocketClient.SendError(err)
 		return
 	}
-	for _, user := range chat.Users {
-		client, ok := h.getClientById[user.ID]
-		if !ok {
-			messageWithSocket.SocketClient.SendError(ErrUserIdNotFound)
+
+	mess := &Message{MessageName: "delete_chat", MessageBody: map[string]interface{}{
+		"chat_id": messageBody.ChatID,
+	}}
+
+	for _, userId := range userIds {
+		client, ok := h.getClientById[userId]
+		if ok {
+			client.messageChan <- mess
 		}
-		client.messageChan <- &Message{}
 	}
-	// todo
-}
-
-func (h *SocketHub) handleAcceptSaveChat(messageWithSocket *MessageWithSocketClient) {
-	var messageBody dtos.SaveChatResponse
-	if err := mapstructure.Decode(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
-		messageWithSocket.SocketClient.SendError(ErrInvalidMessageBodyFormat)
-		return
-	}
-	if err := h.validator.Validate(&messageBody); err != nil {
-		messageWithSocket.SocketClient.SendError(err)
-		return
-	}
-	// todo
-}
-
-func (h *SocketHub) handleRejectSaveChat(messageWithSocket *MessageWithSocketClient) {
-	var messageBody dtos.SaveChatResponse
-	if err := mapstructure.Decode(messageWithSocket.Message.MessageBody, &messageBody); err != nil {
-		messageWithSocket.SocketClient.SendError(ErrInvalidMessageBodyFormat)
-		return
-	}
-	if err := h.validator.Validate(&messageBody); err != nil {
-		messageWithSocket.SocketClient.SendError(err)
-		return
-	}
-	// todo
 }

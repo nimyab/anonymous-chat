@@ -16,23 +16,25 @@ type WebsocketService struct {
 type UserQueue struct {
 	mu    sync.Mutex
 	items []uint
+
+	searchUsers chan<- []uint
 }
 
-func NewUserQueue() *UserQueue {
-	return &UserQueue{items: make([]uint, 0, 100)}
+func NewUserQueue(searchUsers chan<- []uint) *UserQueue {
+	return &UserQueue{items: make([]uint, 0, 100), searchUsers: searchUsers}
 }
 
-func (q *UserQueue) PullTwoUserIds() []uint {
+func (q *UserQueue) DeleteUserId(userId uint) int {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	if len(q.items) < 2 {
-		return nil
+	for i := 0; i < len(q.items); i++ {
+		if q.items[i] == userId {
+			q.items = append(q.items[:i], q.items[i+1:]...)
+			return i
+		}
 	}
-	userIds := make([]uint, 2)
-	copy(userIds, q.items[:2])
-	copy(q.items, q.items[2:])
-	return userIds
+	return -1
 }
 
 func (q *UserQueue) Push(userId uint) {
@@ -40,4 +42,12 @@ func (q *UserQueue) Push(userId uint) {
 	defer q.mu.Unlock()
 
 	q.items = append(q.items, userId)
+	if len(q.items) >= 2 {
+		go func() {
+			userIds := make([]uint, 2)
+			copy(userIds, q.items[:2])
+			copy(q.items, q.items[2:])
+			q.searchUsers <- userIds
+		}()
+	}
 }

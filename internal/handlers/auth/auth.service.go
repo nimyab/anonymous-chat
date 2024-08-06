@@ -22,10 +22,9 @@ func (s *AuthService) Login(dto *dtos.UserLoginDto) (u *models.User, accessToken
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	user := models.User{
-		Login: dto.Login,
-	}
-	result := s.gorm.Preload("Chats").Preload("Messages").First(&user)
+	user := models.User{}
+	result := s.gorm.Preload("Chats").Preload("Messages").Where("login = ?", dto.Login).Find(&user)
+
 	if result.RowsAffected == 0 {
 		return nil, "", "", ErrUserNotFound
 	}
