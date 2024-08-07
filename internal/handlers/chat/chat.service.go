@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"errors"
 	"github.com/nimyab/anonymous-chat/internal/database/models"
 	"gorm.io/gorm"
 	"log/slog"
@@ -30,7 +31,22 @@ func (s *ChatService) CreateChat(userIds []uint) (*models.Chat, error) {
 		return nil, ErrNotFoundTwoUsers
 	}
 
-	chat := models.Chat{
+	subQuery := s.gorm.Table("user_chats").Select("chat_id").
+		Where("user_id = ?", userIds[0]).
+		Or("user_id = ?", userIds[1]).
+		Group("chat_id").
+		Having("COUNT(DISTINCT user_id) = 2")
+
+	chat := models.Chat{}
+	err := s.gorm.Preload("Users").Preload("Messages").Where("id IN (?)", subQuery).First(&chat).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	if err == nil {
+		return &chat, nil
+	}
+
+	chat = models.Chat{
 		Users: users,
 	}
 	result = s.gorm.Create(&chat)

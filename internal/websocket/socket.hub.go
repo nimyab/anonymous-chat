@@ -13,6 +13,15 @@ import (
 // search_interlocutor, found_interlocutor
 // send_message, send_message
 // delete_chat, delete_chat
+// stop_interlocutor, stop_interlocutor
+
+const (
+	searchInterlocutor = "search_interlocutor"
+	foundInterlocutor  = "found_interlocutor"
+	sendMessage        = "send_message"
+	deleteChat         = "delete_chat"
+	searchStop         = "search_stop"
+)
 
 type SocketHub struct {
 	broadcast chan *MessageWithSocketClient
@@ -59,12 +68,14 @@ func (h *SocketHub) unregisterClient(client *SocketClient) {
 
 func (h *SocketHub) handleMessage(messageWithSocket *MessageWithSocketClient) {
 	switch messageWithSocket.Message.MessageName {
-	case "search_interlocutor":
+	case searchInterlocutor:
 		h.handleSearchInterlocutor(messageWithSocket)
-	case "send_message":
+	case sendMessage:
 		h.handleSendMessage(messageWithSocket)
-	case "delete_chat":
+	case deleteChat:
 		h.deleteChat(messageWithSocket)
+	case searchStop:
+		h.handleStopSearch(messageWithSocket)
 	default:
 		messageWithSocket.SocketClient.SendError(ErrSuchMessageNameNoExist)
 	}
@@ -77,7 +88,7 @@ func (h *SocketHub) handleFoundInterlocutor(userIds []uint) {
 		h.websocketService.userInSearch.Push(userIds[1])
 		return
 	}
-	mess := &Message{MessageName: "found_interlocutor", MessageBody: map[string]interface{}{
+	mess := &Message{MessageName: foundInterlocutor, MessageBody: map[string]interface{}{
 		"chat": chat,
 	}}
 	for _, userId := range userIds {
@@ -95,9 +106,23 @@ func (h *SocketHub) handleSearchInterlocutor(messageWithSocket *MessageWithSocke
 	}
 	h.websocketService.userInSearch.Push(userId)
 	messageWithSocket.SocketClient.messageChan <- &Message{
-		"search_interlocutor",
+		searchInterlocutor,
 		map[string]interface{}{
 			"message": "start",
+		},
+	}
+}
+
+func (h *SocketHub) handleStopSearch(messageWithSocket *MessageWithSocketClient) {
+	userId, ok := h.getIdByClient[messageWithSocket.SocketClient]
+	if !ok {
+		return
+	}
+	h.websocketService.userInSearch.DeleteUserId(userId)
+	messageWithSocket.SocketClient.messageChan <- &Message{
+		searchStop,
+		map[string]interface{}{
+			"message": "stop",
 		},
 	}
 }
@@ -127,7 +152,7 @@ func (h *SocketHub) handleSendMessage(messageWithSocket *MessageWithSocketClient
 		messageWithSocket.SocketClient.SendError(err)
 	}
 
-	mess := &Message{MessageName: "send_message", MessageBody: map[string]interface{}{
+	mess := &Message{MessageName: sendMessage, MessageBody: map[string]interface{}{
 		"message": message,
 	}}
 	for _, userId := range userIds {
@@ -154,7 +179,7 @@ func (h *SocketHub) deleteChat(messageWithSocket *MessageWithSocketClient) {
 		return
 	}
 
-	mess := &Message{MessageName: "delete_chat", MessageBody: map[string]interface{}{
+	mess := &Message{MessageName: deleteChat, MessageBody: map[string]interface{}{
 		"chat_id": messageBody.ChatID,
 	}}
 

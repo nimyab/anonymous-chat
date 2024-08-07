@@ -41,12 +41,16 @@ func (q *UserQueue) Push(userId uint) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
+	for i := 0; i < len(q.items); i++ {
+		if q.items[i] == userId {
+			return
+		}
+	}
 	q.items = append(q.items, userId)
 	if len(q.items) >= 2 {
+		userIds := q.items[:2]
+		q.items = q.items[2:]
 		go func() {
-			userIds := make([]uint, 2)
-			copy(userIds, q.items[:2])
-			copy(q.items, q.items[2:])
 			q.searchUsers <- userIds
 		}()
 	}
